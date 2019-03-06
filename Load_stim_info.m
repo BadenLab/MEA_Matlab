@@ -43,17 +43,17 @@ for ii = 1:epochs
         
     case compare(7)
         load('Noise380_20Hz');
-        Epochs.Noise380 = Noise380_20Hz;
+        Epochs.Noise380 = Noise380z;
         load('Noise430_20Hz');
-        Epochs.Noise430 = Noise430_20Hz;
+        Epochs.Noise430 = Noise430;
         load('Noise480_20Hz');
-        Epochs.Noise480 = Noise480_20Hz;
+        Epochs.Noise480 = Noise480;
         load('Noise505_20Hz');
-        Epochs.Noise505 = Noise505_20Hz;
+        Epochs.Noise505 = Noise505;
         load('Noise560_20Hz');
-        Epochs.Noise560 = Noise560_20Hz;
+        Epochs.Noise560 = Noise560;
         load('Noise630_20Hz');
-        Epochs.Noise630 = Noise630_20Hz;
+        Epochs.Noise630 = Noise630;
         Epochs.Epochtext(1,ii) = {'CNoise'};
         
         

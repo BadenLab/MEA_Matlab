@@ -131,6 +131,7 @@ Epochs.nr_epochs = length(stimcode);
 
 Epochs.nr_unique_epochs = length(unique(Epochs.Epoch_code));
 Epochs.Epochtext = cell(1,Epochs.nr_epochs);
+Epochs.nr_stim_repeats = Epochs.nr_epochs/Epochs.nr_unique_epochs;
 
 
         

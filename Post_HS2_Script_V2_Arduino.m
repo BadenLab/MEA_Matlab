@@ -105,20 +105,20 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
      units = double(tabulate(cluster_id));
      nunits = numel(units(:,1));
      maxspikes = max(units(:,2));
-     spiketimestamps(1:maxspikes,1:100) = zeros; %This only loads the first 100 clusters, shall be changed soon
+     spiketimestamps = sparse(zeros(maxspikes,nunits)); 
 %      spiketimestamps = tall(zeros(maxspikes,nunits));
-%      a = 1;
+     a = 1;
 
-     for i = 1:100 %This only loads  the first 100 clusters, shall be changed soon
-         spiketimestamps(1:units(i,2),i)=(times(cluster_id==units(i,1)));
-         empty_cluster = nnz(spiketimestamps(:,i));
-%          if empty_cluster <100
-%              
-%              spiketimestamps(:,a) = [];
-%          else
-%              a = a+1;
-%          end
-         % use indices to get the spikes from the same cluster with time
+     for i = 1:nunits %This only loads  the first 100 clusters, shall be changed soon
+         spiketimestamps(1:units(i,2),a)=(times(cluster_id==units(i,1)));
+         empty_cluster = nnz(spiketimestamps(:,a));
+         if empty_cluster <5000
+             
+             spiketimestamps(:,a) = [];
+         else
+             a = a+1;
+         end
+%          use indices to get the spikes from the same cluster with time
      end
      %Transfer timestamps from frames to seconds
      spiketimestamps = spiketimestamps / Sampling;

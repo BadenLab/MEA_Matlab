@@ -105,7 +105,7 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
      units = double(tabulate(cluster_id));
      nunits = numel(units(:,1));
      maxspikes = max(units(:,2));
-     spiketimestamps = sparse(maxspikes,nunits)); 
+     spiketimestamps = sparse(maxspikes,nunits); 
 %      spiketimestamps = tall(zeros(maxspikes,nunits));
      a = 1;
 

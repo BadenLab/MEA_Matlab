@@ -19,6 +19,8 @@ for ii = 1:xST
     indexL(1,ii) = find(spiketimestamps(:,ii),1,'last');
 end
 
+bin_start_1 = NaN(1,Nr_bins,Epochs.nr_epochs);
+bin_end_1 = NaN(1,Nr_bins,Epochs.nr_epochs);
 
 %First we need to calculate the edges for the histocount function 
 for bb = 1:Epochs.nr_epochs 

@@ -211,7 +211,7 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
 
 
 %This function bins the spikes
-Bined_epochs = Epochs_bining_V2(Epochs, spiketimestamps,1);
+Bined_epochs = Epochs_bining_V3(Epochs, spiketimestamps,1);
 %Save the bined spikes into the Epochs structure as tall array
 Epochs.Bined_epochs = tall(Bined_epochs);
 
@@ -228,7 +228,7 @@ Smoothened_averaged_spikes = smoothdata(Averaged_Epochs_s,'gaussian',2,'omitnan'
 Epochs.Smoothened_averaged_spikes = tall(Smoothened_averaged_spikes);
 
 %Save the spiketimestamps as tall matrix
-Epochs.spiketimestamps = tall(spiketimestamps);
+Epochs.spiketimestamps = tall(full(spiketimestamps));
 
     
 
@@ -285,9 +285,9 @@ end
 
 %% Clustering of Traces
 Smoothened_averaged_spikes = gather(Epochs.Smoothened_averaged_spikes);
-Coeff = pca(Smoothened_averaged_spikes(:,85)');
+
 Cluster_traces = Smoothened_averaged_spikes';
-Spike_clusters = clusterdata(Cluster_traces,2);
+Spike_clusters = clusterdata(Cluster_traces,400);
 
 
 
@@ -318,6 +318,7 @@ while true %This loops as long as the user breaks the loop by input
     close all
     
 %Ask for the cluster(or cell) the user wants to see
+
 prompt = {"Enter the number of the cluster you'd like to see"};
 title1 = 'Cluster Selection';
 dims = [1 35];

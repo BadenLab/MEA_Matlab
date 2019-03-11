@@ -91,8 +91,8 @@ pre_stimulus_window = 1; %Time in seconds that are shown before the stimulus beg
 [hdfname,pathname] = uigetfile('*.hdf5','Select hdf5 file')
 % want_spike_trace = 0
 HdfFile=strcat(pathname,hdfname);
-centres = double(h5read(HdfFile,'/centres'));   % get the cluster localisation
-centres = centres';
+centres_temp = double(h5read(HdfFile,'/centres'));   % get the cluster localisation
+centres_temp = centres_temp';
 % columns 1&2 refer to x and y coordinates respectively
 cluster_id =double(h5read(HdfFile,'/cluster_id'));  % the cluter id's for every spike
 times = double(h5read(HdfFile,'/times'));  % the time ( in data point) 
@@ -106,23 +106,28 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
      nunits = numel(units(:,1));
      maxspikes = max(units(:,2));
      spiketimestamps = sparse(maxspikes,nunits); 
+     spiketimestamps_empty = zeros(nunits,1);
 %      spiketimestamps = tall(zeros(maxspikes,nunits));
      a = 1;
 
      for i = 1:nunits %This only loads  the first 100 clusters, shall be changed soon
+         i
          spiketimestamps(1:units(i,2),a)=(times(cluster_id==units(i,1)));
          empty_cluster = nnz(spiketimestamps(:,a));
          if empty_cluster <5000
              
              spiketimestamps(:,a) = [];
+             spiketimestamps_empty(i,1) = 1;
+            
          else
+             centres(a,:) = centres_temp(i,:);
              a = a+1;
          end
 %          use indices to get the spikes from the same cluster with time
      end
      %Transfer timestamps from frames to seconds
      spiketimestamps = spiketimestamps / Sampling;
-     
+     clear centres_temp
      disp ("Data Loaded");
      
      
@@ -585,8 +590,8 @@ elseif length(es) == length(idx) %This plots the whole traces in once
    
     ylabel('Trials')
     set(ax1,'XTick',[])
-    ax1.YTick(1) = [];
-    ax1.YTick(1) = Epochs.nr_stim_repeat/2+0.5;
+%     ax1.YTick(1) = [];
+%     ax1.YTick(1) = Epochs.nr_stim_repeat/2+0.5;
     ax1.YTickLabel = num2str(Epochs.nr_stim_repeat);
     ax1.XColor = [1 1 1];
    
@@ -725,8 +730,8 @@ end
 for mm = 1:l_same_cluster
 scatter(Epochs.centres(same_cluster_idx(mm),1),Epochs.centres(same_cluster_idx(mm)...
     ,2),'r', 'filled');
-text(Epochs.centres(same_cluster_idx(mm),1),Epochs.centres(same_cluster_idx(mm),2),...
-    ['  Cell ',num2str(same_cluster_idx(mm))]);
+% text(Epochs.centres(same_cluster_idx(mm),1),Epochs.centres(same_cluster_idx(mm),2),...
+%     ['  Cell ',num2str(same_cluster_idx(mm))]);
 xlim ([0 64])
 ylim ([0 64])
 set(gca,'visible','off')

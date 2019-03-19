@@ -43,7 +43,7 @@ for ii = 1:epochs
         
     case compare(7)
         load('Noise380');
-        Epochs.Noise380 = Noise380z;
+        Epochs.Noise380 = Noise380;
         load('Noise430');
         Epochs.Noise430 = Noise430;
         load('Noise480');

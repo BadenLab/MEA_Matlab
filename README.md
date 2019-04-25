@@ -13,5 +13,5 @@ Also in the plotting section the number of loop repeats is no taken from that va
 stimulus_repeat = Epochs.loop_repeats;
 
 
-
-
+Currently changes are made to establish a Quality Criterium for the Kernels, the functions will be uploaded soon 
+Also added was a "Silent_substitution_analysis" script. This is just a prototype and not a real function so far.  

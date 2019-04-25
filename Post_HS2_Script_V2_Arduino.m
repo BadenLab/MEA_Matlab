@@ -105,16 +105,17 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
      units = double(tabulate(cluster_id));
      nunits = numel(units(:,1));
      maxspikes = max(units(:,2));
-     spiketimestamps = sparse(maxspikes,nunits); 
+%      spiketimestamps = sparse(maxspikes,nunits); 
+      spiketimestamps = sparse(maxspikes,100); 
      spiketimestamps_empty = zeros(nunits,1);
 %      spiketimestamps = tall(zeros(maxspikes,nunits));
      a = 1;
 
-     for i = 1:nunits %This only loads  the first 100 clusters, shall be changed soon
+     for i = 1:100%nunits %This only loads  the first 100 clusters, shall be changed soon
          i
          spiketimestamps(1:units(i,2),a)=(times(cluster_id==units(i,1)));
          empty_cluster = nnz(spiketimestamps(:,a));
-         if empty_cluster <5000
+         if empty_cluster <1000
              
              spiketimestamps(:,a) = [];
              spiketimestamps_empty(i,1) = 1;
@@ -219,10 +220,10 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
 Bined_epochs = Epochs_bining_V3(Epochs, spiketimestamps,1);
 %Save the bined spikes into the Epochs structure as tall array
 Epochs.Bined_epochs = tall(Bined_epochs);
-
+%%
 %This function averages the number of spikes per bin for all stimulus
 %except the Colour Noise (Maybe we need to include CNoise in future...)
-Averaged_Epochs = Responseaverage(Epochs,Bined_epochs,Mode);
+[Averaged_Epochs,Epochs] = Responseaverage(Epochs,Bined_epochs,Mode);
 
 %Transfer spikes per bins to spikes per second
 Averaged_Epochs_s = Averaged_Epochs * (1/Epochs.binsize);
@@ -234,6 +235,10 @@ Epochs.Smoothened_averaged_spikes = tall(Smoothened_averaged_spikes);
 
 %Save the spiketimestamps as tall matrix
 Epochs.spiketimestamps = tall(full(spiketimestamps));
+
+%Get the Epochs text for the whole loop
+
+Epochs.Epochtext_single = unique(Epochs.Epochtext,'stable');
 
     
 
@@ -282,28 +287,49 @@ RGB_value = RGB_value/255;
 
 %% Calculate Kernels
 if want_Kernels == 1
-Kernels = calculate_kernels(Epochs,0.02,2);
+Kernels = calculate_kernels(Epochs,0.001,2,1:1068);
 Epochs.Kernels = tall(Kernels);
+[KQI,KQI_C,KQI_past] = Quality_Kernels(Epochs.Kernels,4,0.1);
+
+
+Epochs.KQI = KQI;
+Epochs.KQI_C = KQI_C;
+Epochs.KQI_past = KQI_past;
 end
-
-
 
 %% Clustering of Traces
 Smoothened_averaged_spikes = gather(Epochs.Smoothened_averaged_spikes);
 
 Cluster_traces = Smoothened_averaged_spikes';
-Spike_clusters = clusterdata(Cluster_traces,400);
 
+% Spike_clusters = clusterdata(Cluster_traces,'Maxclust',50);HowTo
+
+[idx_1,C] = kmeans(Cluster_traces,50,'Distance','correlation',...
+    'Replicates',5);
+Spike_clusters = idx_1;
+
+
+
+%% Response quality check
+%Not fully integrated yet
+RQC_epochs = [1 1 1 1 1 1 0 1 1 1 1 1];
+
+Response_quality_idx = RQC(Epochs,RQC_epochs);
+
+Best_cells = find(Response_quality_idx>0.15);
 
 
 
 %% Save the Data
 %First we have to write all the necessary data into the Epochs structure
+% Epochs.Best_cells = Best_cells;
+% Epochs.Response_quality_idx = Response_quality_idx;
 Epochs.centres = tall(centres);
-Epochs.Spike_clusters = Spike_clusters;
-Epochs.centres = centres;
+% Epochs.Spike_clusters = Spike_clusters;
+
 Epochs.RGB_value = tall(RGB_value);
 Epochs.SamplingFrequency = SamplingFrequency;
+
 if Mode == 0
 Epochs.FFF_repeat = fff_repeat;
 Epochs.r_repeat = r_repeat;
@@ -339,18 +365,18 @@ while exist('es','var')
     
  % Get available stimuli
 list = {'Chirp', 'Ramp','FFF','FFF380', 'FFF430','FFF480', 'Dark Flash', 'FFF560',...
-    'FFF505', 'Colour Noise', 'FFF630', 'CNoise', 'SS430', 'SS480', 'SS505', 'SS560', 'SS630'};
+    'FFF505', 'Colour Noise', 'FFF630', 'CNoise', 'SS380','SS430', 'SS480', 'SS505', 'SS560', 'SS630', 'LStep430'};
 %We need this extra cell array so that we can compare which stimuli are
 %used in the data
 
 list1 = {{'Chirp'}, {'Ramp'},{'FFF'}, {'FFF380'},{'FFF430'},{'FFF480'}, {'Dark Flash'}, {'FFF560'},...
-    {'FFF505'}, {'Colour Noise'}, {'FFF630'},{'CNoise'}, {'SS430'}, {'SS480'}, {'SS505'}, {'SS560'}, {'SS630'}};
+    {'FFF505'}, {'Colour Noise'}, {'FFF630'},{'CNoise'}, {'SS380'},{'SS430'}, {'SS480'}, {'SS505'}, {'SS560'}, {'SS630'}, {'LStep430'}};
 avail_stim = strings(1,Epochs.nr_unique_epochs);
 
 for ss = 1:Epochs.nr_unique_epochs
     %Here we check which stimuli have been used during the recording by
     %comparing the list to Epochs.Epochtext
-    avail_stim(ss) = string(Epochs.Epochtext(ss));
+    avail_stim(ss) = string(Epochs.Epochtext_single(ss));
     idx(ss) = find(strcmp([list1{:}], avail_stim(ss)));
 end
 
@@ -522,7 +548,7 @@ elseif length(es) == length(idx) %This plots the whole traces in once
     
     %Check how often the stimulus loop was repeated and create a matrix to
     %fit in all spikes which happend during a stimulus loop
-    stimulus_repeat = Epochs.nr_epochs/Epochs.nr_unique_epochs;
+    stimulus_repeat = Epochs.loop_repeats;
     spiketrain_trials = NaN(length(whole_spiketrain(:,1)),stimulus_repeat);
     spiketrain_begins = Epochs.stimulus_starts_pw(cut_begin);
     
@@ -553,7 +579,7 @@ elseif length(es) == length(idx) %This plots the whole traces in once
     %% Get the stimulus data
     %In this section the information about the stimulus itself is loaded
     %and prepared for plotting
-    Epoch_code_temp = Epochs.Epoch_code(1,(1:Epochs.nr_unique_epochs));
+    Epoch_code_temp = Epochs.Epoch_code(1,(1:nr_epochs_whole));
     
     C_Noise_Epoch = Epoch_code_temp == single(0.35);
     C_Noise_Epoch_neg = find(C_Noise_Epoch ~= 1);
@@ -590,18 +616,20 @@ elseif length(es) == length(idx) %This plots the whole traces in once
    
     ylabel('Trials')
     set(ax1,'XTick',[])
-%     ax1.YTick(1) = [];
-%     ax1.YTick(1) = Epochs.nr_stim_repeat/2+0.5;
-    ax1.YTickLabel = num2str(Epochs.nr_stim_repeat);
+    ax1.YTick(1) = [];
+    ax1.YTick(1) = Epochs.loop_repeats/2+0.5;
+    ax1.YTickLabel = num2str(Epochs.loop_repeats);
     ax1.XColor = [1 1 1];
    
     
     
     ax2 = subplot(4,1,2);
 
-    ax21 = plot(x_whole_trace,whole_trace);
-    ylabel('Spikes \times s^-^1')
+    ax21 = plot(x_whole_trace,whole_trace,'k');
+    ylabel('Spikes [Hz]')
+    set(ax1,'XTick',[])
     set(ax21.Parent,'XTick',[])
+    ax1.YTick(1) = [];
     ax21.Parent.XColor = [1 1 1];
     
     ax2.OuterPosition(2) = ax2.OuterPosition(2)+0.05;
@@ -635,20 +663,27 @@ elseif length(es) == length(idx) %This plots the whole traces in once
     ax4.OuterPosition(4) = ax4.OuterPosition(4)*0.5;
     ax4.OuterPosition(2) = ax4.OuterPosition(2)+0.28;
     set(ax4,'YTick',[])
+    xlabel ('Time [s]')
 
     linkaxes([ax1,ax2,ax3,ax4],'x')
     
     
     %% plot Kernel
     if want_Kernels == 1
-    Kernel_plot = squeeze(Kernels(:,:,current_cluster));
+    Kernel_plot = squeeze(gather(Epochs.Kernels(:,:,current_cluster)));
     
+    colorstring = 'mbgr';
+    xaxis_k = (-1.999:0.001:0.2);
      figure
     for kk = 1:length(Kernel_plot(:,1))
+    Kernel_plot = Kernel_plot./max(max(Kernel_plot));
+    plot(xaxis_k,Kernel_plot(kk,:),'Color',colorstring(kk),'LineWidth',2)
     
-    plot(Kernel_plot(kk,:))
     hold on
     end
+%     line([0 0], [-5 5],'Color','k'); 
+    xlim ([-0.5 0.2])
+    set(gca, 'YTick', [])
     end
     
 end
@@ -665,7 +700,7 @@ quest = {'Do you want to have a look at another epoch?, Or do you want to see'..
     'all other cells with the same response characteristics?'};
 pbtns = {'Yes','No','Other cells'};
 
-[pval,tf] = uigetpref(group,pref,title1,quest,pbtns);
+[pval,~] = uigetpref(group,pref,title1,quest,pbtns);
 s1 = 'yes';
 s2 = 'no';
 s3 = 'other cells';
@@ -730,8 +765,8 @@ end
 for mm = 1:l_same_cluster
 scatter(Epochs.centres(same_cluster_idx(mm),1),Epochs.centres(same_cluster_idx(mm)...
     ,2),'r', 'filled');
-% text(Epochs.centres(same_cluster_idx(mm),1),Epochs.centres(same_cluster_idx(mm),2),...
-%     ['  Cell ',num2str(same_cluster_idx(mm))]);
+text(Epochs.centres(same_cluster_idx(mm),1),Epochs.centres(same_cluster_idx(mm),2),...
+    ['  Cell ',num2str(same_cluster_idx(mm))]);
 xlim ([0 64])
 ylim ([0 64])
 set(gca,'visible','off')

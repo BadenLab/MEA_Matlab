@@ -1,5 +1,5 @@
-function Quality_criteria = RQC (Epochs,Epochs2analyse)
-Data = create_trial_responses(Epochs);
+function Quality_criteria = RQC (Epochs,Epochs2analyse,Bined_epochs)
+Data = create_trial_responses(Epochs,Bined_epochs);
 Data_size = size(Data);
 STx = Data_size(1);
 nr_epochs = Data_size(3);

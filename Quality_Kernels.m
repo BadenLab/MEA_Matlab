@@ -67,7 +67,7 @@ KQI_C = KQI_size .* KQI_temp;
 bar(KQI_C,'DisplayName','KQI_C')
 
 KQI = max(KQI_C,[],2);
-KQI_past = KQI > (mean(KQI)+std(KQI));
+KQI_past = KQI > (nanmean(KQI)+std(KQI));
 KQI_past = find(KQI_past)';
 
 

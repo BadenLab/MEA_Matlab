@@ -1,5 +1,4 @@
-for ii = 1:11
-    
+for ii = [7,8,9,10]
     SS_max(ii,:) = max(gather(Find_Epoch(Epochs,ii)));
 end
 
@@ -24,7 +23,7 @@ hold off
 
 
 
-for kk = 1
+for kk = 4
     
     plot_temp = normalize(mean(Smoothened_averaged_spikes(:,SS_response(kk,:)),2));
     

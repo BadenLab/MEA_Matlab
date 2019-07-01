@@ -98,6 +98,8 @@ cluster_id =double(h5read(HdfFile,'/cluster_id'));  % the cluter id's for every 
 times = double(h5read(HdfFile,'/times'));  % the time ( in data point) 
 %for each spike (note cluster_id and times has the same length, becomes important later)
 Sampling = double(h5read(HdfFile,'/Sampling')); 
+Channels = double(h5read(HdfFile,'/ch')); 
+%Shapes = double(h5read(HdfFile,'/shapes')); 
 time_in_s = times / Sampling; %Converts the information about frames into time in s
 
  % some things to do before we can strt. Here I generate a big matrix with 
@@ -106,12 +108,12 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
      nunits = numel(units(:,1));
      maxspikes = max(units(:,2));
 %      spiketimestamps = sparse(maxspikes,nunits); 
-      spiketimestamps = sparse(maxspikes,100); 
+      spiketimestamps = sparse(maxspikes,nunits); 
      spiketimestamps_empty = zeros(nunits,1);
 %      spiketimestamps = tall(zeros(maxspikes,nunits));
      a = 1;
 
-     for i = 1:100%nunits %This only loads  the first 100 clusters, shall be changed soon
+     for i = 1:nunits 
          i
          spiketimestamps(1:units(i,2),a)=(times(cluster_id==units(i,1)));
          empty_cluster = nnz(spiketimestamps(:,a));
@@ -151,7 +153,8 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
  
  %Get a logical matrix which indicates Epochs of Colour Noise
  Epochs.CNoise = Epochs.Epoch_code == single(0.35);
-
+ Epochs.nr_CNoise = nnz(Epochs.CNoise);
+ Epochs.nCN_epochs = Epochs.nr_unique_epochs - Epochs.nr_CNoise;
 
 
  %This path refers to the matlab files in which the stimulus
@@ -218,6 +221,7 @@ time_in_s = times / Sampling; %Converts the information about frames into time i
 
 %This function bins the spikes
 Bined_epochs = Epochs_bining_V3(Epochs, spiketimestamps,1);
+
 %Save the bined spikes into the Epochs structure as tall array
 Epochs.Bined_epochs = tall(Bined_epochs);
 %%
@@ -286,8 +290,36 @@ RGB_value = RGB_value/255;
 
 
 %% Calculate Kernels
-if want_Kernels == 1
-Kernels = calculate_kernels(Epochs,0.001,2,1:1068);
+if want_Kernels == 1 && Mode == 0
+Kernels = calculate_kernels(Epochs,0.001,2,1:500);
+%Speed version
+
+elseif want_Kernels == 1 && Mode == 1
+    %Cut spiktimestamps into Batches of 500
+    Batch = 500;
+    if length(Epochs.spiketimestamps(1,:)) <= Batch
+        Kernels = calculate_Kernels_speed (Epochs,Epochs.spiketimestamps, kbinsize, time_window);
+    else
+    Nr_Batches_c = ceil(length(Epochs.spiketimestamps(1,:))/Batch);
+    Nr_Batches_s = Nr_Batches_c - 1;
+    Kernels_temp = NaN(4,time_window*1000+0.2*1000,length(Epochs.spiketimestamps(1,:)));
+    stx_B = 1;
+    for kk = 1:Nr_Batches_s
+        Kernels_temp(:,:,stx_B:stx_B+Batch) = calculate_Kernels_speed (Epochs,Epochs.spiketimestamps(:,...
+            stx_B:stx_B+Batch), kbinsize, time_window);
+        stx_B = stx_B+Batch;
+        kk
+    end
+    Remain_K = length(Epochs.spiketimestamps(1,:)) - Nr_Batches_s * Batch ;
+     Kernels_temp(:,:,stx_B:stx_B+Remain_K-1) = calculate_Kernels_speed (Epochs,Epochs.spiketimestamps(:,...
+            stx_B:stx_B+Remain_K-1), kbinsize, time_window);
+    end
+        
+        
+    
+    
+    end
+    
 Epochs.Kernels = tall(Kernels);
 [KQI,KQI_C,KQI_past] = Quality_Kernels(Epochs.Kernels,4,0.1);
 
@@ -295,7 +327,7 @@ Epochs.Kernels = tall(Kernels);
 Epochs.KQI = KQI;
 Epochs.KQI_C = KQI_C;
 Epochs.KQI_past = KQI_past;
-end
+
 
 %% Clustering of Traces
 Smoothened_averaged_spikes = gather(Epochs.Smoothened_averaged_spikes);
@@ -312,11 +344,11 @@ Spike_clusters = idx_1;
 
 %% Response quality check
 %Not fully integrated yet
-RQC_epochs = [1 1 1 1 1 1 0 1 1 1 1 1];
+RQC_epochs = [1 1 1 1 1 1 1];
 
-Response_quality_idx = RQC(Epochs,RQC_epochs);
+Response_quality_idx = RQC(Epochs,RQC_epochs,Bined_epochs);
 
-Best_cells = find(Response_quality_idx>0.15);
+Best_cells = find(Response_quality_idx>0.2);
 
 
 
@@ -334,13 +366,14 @@ if Mode == 0
 Epochs.FFF_repeat = fff_repeat;
 Epochs.r_repeat = r_repeat;
 end
-
+n
 %This opens a dialog box to save the data
 [file,path] = uiputfile('Phase.mat');
 cd(path);
 save(file,'Epochs', '-v7.3');
 
 end
+
 %% Inspect single clusters
 
 
@@ -600,12 +633,14 @@ elseif length(es) == length(idx) %This plots the whole traces in once
     x_stimulus_plot = x_whole_trace;
    end
     temp_sfg = ones(length(RGB_whole_trace),1);
-    
+    chirp_sfg = (0.02:0.02:30)/30;
+    temp_sfg(751:2250,1) = chirp_sfg;
     
     
     %% Plot
-    
-    ax1 = subplot(4,1,1);
+    fig = figure
+    set(fig,'renderer','painters');
+    ax1 = subplot(3,1,1);
     
 
     for ii = 1:stimulus_repeat
@@ -617,13 +652,14 @@ elseif length(es) == length(idx) %This plots the whole traces in once
     ylabel('Trials')
     set(ax1,'XTick',[])
     ax1.YTick(1) = [];
-    ax1.YTick(1) = Epochs.loop_repeats/2+0.5;
+    ax1.YTick = [0 Epochs.loop_repeats/2+0.5];
     ax1.YTickLabel = num2str(Epochs.loop_repeats);
     ax1.XColor = [1 1 1];
+    ylim ([-0.5 Epochs.loop_repeats/2+2])
    
     
     
-    ax2 = subplot(4,1,2);
+    ax2 = subplot(3,1,2);
 
     ax21 = plot(x_whole_trace,whole_trace,'k');
     ylabel('Spikes [Hz]')
@@ -636,21 +672,21 @@ elseif length(es) == length(idx) %This plots the whole traces in once
     
     
     
-     [Coeffs,f] = cwt(whole_trace,(1/Epochs.binsize));
-%     Coeffs = flipud(Coeffs);
-%     f = flipud(f);
-    SCimg = wscalogram('',Coeffs,'scales',f,'ydata',whole_trace,'xdata',x_whole_trace);
-    ax3 = subplot(4,1,3);
-    hold on
-    spec = imagesc(x_whole_trace,f,SCimg);
-    ylim([10 20])
-    ylabel('Frequency [Hz]')
-    ax3.OuterPosition(4) = ax3.OuterPosition(4)*0.5;
-    ax3.OuterPosition(2) = ax3.OuterPosition(2)+0.18;
-    set(ax3,'XTick',[])
-    ax3.XColor = [1 1 1];
+%      [Coeffs,f] = cwt(whole_trace,(1/Epochs.binsize));
+% %     Coeffs = flipud(Coeffs);
+% %     f = flipud(f);
+%     SCimg = wscalogram('',Coeffs,'scales',f,'ydata',whole_trace,'xdata',x_whole_trace);
+%     ax3 = subplot(4,1,3);
+%     hold on
+%     spec = imagesc(x_whole_trace,f,SCimg);
+%     ylim([10 20])
+%     ylabel('Frequency [Hz]')
+%     ax3.OuterPosition(4) = ax3.OuterPosition(4)*0.5;
+%     ax3.OuterPosition(2) = ax3.OuterPosition(2)+0.18;
+%     set(ax3,'XTick',[])
+%     ax3.XColor = [1 1 1];
     
-    ax4 = subplot(4,1,4);
+    ax4 = subplot(3,1,3);
     
         hold on
 %         stimulus_plot = bar(x_whole_trace,temp_sfg,2,'FaceColor','flat','EdgeColor','flat');
@@ -661,11 +697,11 @@ elseif length(es) == length(idx) %This plots the whole traces in once
         end
              
     ax4.OuterPosition(4) = ax4.OuterPosition(4)*0.5;
-    ax4.OuterPosition(2) = ax4.OuterPosition(2)+0.28;
+    ax4.OuterPosition(2) = ax4.OuterPosition(2)+0.2;
     set(ax4,'YTick',[])
     xlabel ('Time [s]')
 
-    linkaxes([ax1,ax2,ax3,ax4],'x')
+    linkaxes([ax1,ax2,ax4],'x')
     
     
     %% plot Kernel

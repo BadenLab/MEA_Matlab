@@ -69,16 +69,16 @@ for bb = 1:Epochs.nr_epochs
         last_Bined_temp = length(Bined_temp(1,:));
         Bined_temp(1,(last_Bined_temp+1:Nr_bins)) = NaN;
         Epochs_bined(1,kk,:,bb) = Bined_temp;
-        test1 = nnz(spikes_temp)
-        test2 = sum(Bined_temp)
+%         test1 = nnz(spikes_temp)
+%         test2 = sum(Bined_temp)
         spikes_size = length(spikes_temp(:,1));
         test_traces(bb,1:spikes_size) = spikes_temp;
 
        
     end
 end
-       close(g) 
-        
+close (g)
+
         
     
    
